@@ -17,6 +17,7 @@ contract Managed {
     event Abdicated(address indexed old, address indexed _new);
 
     function Managed() public {
+        admin = msg.sender;
         isAdministrator[msg.sender] = true;
         isManager[msg.sender] = true;
     }
