@@ -11,6 +11,7 @@ contract OfficialOps is Managed {
     function OfficialOps() public {
         //coinAddress cant be initialized, but set by administrator later on
         coinAddress = 0x0;
+        //feather contract address
     }
 
     //annonymous function to receive fund, just like required in erc223 standard
@@ -18,11 +19,26 @@ contract OfficialOps is Managed {
         //todo
     }
 
-    function setCoinAddress(address _coin) administrator_only public {
-        coinAddress = _coin;
+    //超管设置被管理的货币地址
+    function setCoinAddress(address _newCoinAddress) administrator_only public {
+        require(isContract(_newCoinAddress));
+        coinAddress = _newCoinAddress;
     }
 
+
+    //官方调用交易
     function officialTransfer() official_only public constant {
+
         //todo;
+    }
+
+    //地址是否是以太坊合约
+    function isContract(address _contractAddress) private constant returns (bool) {
+        uint length;
+        assembly {
+        //检索目标地址上的代码大小，这需要汇编
+        length := extcodesize(_contractAddress)
+        }
+        return (length > 0);
     }
 }

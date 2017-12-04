@@ -23,11 +23,7 @@ contract Coin is Administrated, ERC223Token {
 
     event Burn(address indexed from, uint256 value);
 
-    function Coin(
-    uint256 initialSupply,
-    string coinName,
-    string coinSymbol
-    ) public {
+    function Coin(uint256 initialSupply, string coinName, string coinSymbol) public {
         totalSupply = initialSupply * 10 ** uint256(decimals);
         name = coinName;
         symbol = coinSymbol;
