@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 
 import './TokenManagement.sol';
+import './Coin.sol';
 
 
 contract OfficialOps is Managed {
@@ -28,7 +29,9 @@ contract OfficialOps is Managed {
 
     //官方调用交易
     function officialTransfer() official_only public constant {
-
+        require(coinAddress != 0x0);
+        Coin feather = Coin(coinAddress);
+        feather.officialTransfer();
         //todo;
     }
 
