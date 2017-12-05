@@ -1,12 +1,13 @@
 pragma solidity ^0.4.18;
 
 
-import './ERC223Token.sol';
+//ERC223标准只需要Coin全部实现即可,不需要单独继承.否则会部署失败
+//import './ERC223Token.sol';
 import './Administrated.sol';
 import './ERC223RecevingContract.sol';
 
 
-contract Coin is Administrated, ERC223Token {
+contract Coin is Administrated {
     string public name;
 
     string public symbol;
@@ -57,8 +58,14 @@ contract Coin is Administrated, ERC223Token {
 
         if (codeLength > 0) {
             ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-            receiver.tokenFallback(msg.sender, _value, new bytes(1));
+            receiver.tokenFallback(msg.sender, _value, new bytes(0));
         }
+    }
+
+    //public functions
+    function transfer(address _to, uint256 _value) public {
+        _transfer(msg.sender, _to, _value);
+        Transfer(msg.sender, _to, _value, new bytes(0));
     }
 
     //public functions
