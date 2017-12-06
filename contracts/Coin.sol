@@ -36,6 +36,7 @@ contract Coin is Administrated {
         totalSupply = initialSupply * 10 ** uint256(decimals);
         name = coinName;
         symbol = coinSymbol;
+        balanceOf[msg.sender] = totalSupply;
     }
 
     //internal utility functions
