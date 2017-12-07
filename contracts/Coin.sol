@@ -12,9 +12,7 @@ contract Coin is Administrated {
 
     string public symbol;
 
-    uint8 public decimals = 18;
-
-    uint256 public totalSupply;
+    uint256 public totalSupply = 0x0;
 
     mapping (address => uint) public balanceOf;
 
@@ -31,13 +29,13 @@ contract Coin is Administrated {
     //冻结账号事件
     event FrozenFunds(address target, bool frozen);
 
-    function Coin(uint256 initialSupply, string coinName, string coinSymbol, address _managingContract)
-    Administrated(_managingContract) public {
-        totalSupply = initialSupply * 10 ** uint256(decimals);
+    function Coin(string coinName, string coinSymbol, address _managingContract)
+    Administrated(_managingContract, this)
+    public {
         name = coinName;
         symbol = coinSymbol;
-        balanceOf[msg.sender] = totalSupply;
     }
+
 
     //internal utility functions
     function _transfer(address _from, address _to, uint _value) internal {
@@ -52,12 +50,7 @@ contract Coin is Administrated {
         balanceOf[_from] -= _value;
         assert(balanceOf[_to] + balanceOf[_from] == previousBalances);
 
-        uint codeLength;
-        assembly {
-        codeLength := extcodesize(_to)
-        }
-
-        if (codeLength > 0) {
+        if (isContract(_to)) {
             ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
             receiver.tokenFallback(msg.sender, _value, new bytes(0));
         }
@@ -86,10 +79,10 @@ contract Coin is Administrated {
     // 增发货币
     //functions below are administrator_only
     function mintToken(uint256 mintedAmount) sudo public {
-        balanceOf[msg.sender] += mintedAmount;
+        balanceOf[managingContract] += mintedAmount;
         totalSupply += mintedAmount;
-        Transfer(0, this, mintedAmount, 'mint');
-        Transfer(this, msg.sender, mintedAmount, 'new supply');
+        Transfer(0, managingContract, mintedAmount, 'mint');
+        //Transfer(this, msg.sender, mintedAmount, 'new supply');
     }
 
     //官方操作
@@ -102,5 +95,14 @@ contract Coin is Administrated {
     function freezeAccount(address target, bool freeze) sudo public {
         frozenAccount[target] = freeze;
         FrozenFunds(target, freeze);
+    }
+
+    //管理合同发送的消息
+    function managingContractMessage(string msgType, address oldManagingContract, address newManagingContract) sudo public {
+        if (keccak256(msgType) == keccak256("changeManagingContract")) {
+            uint oldBalance = balanceOf[oldManagingContract];
+            _transfer(oldManagingContract, newManagingContract, oldBalance);
+            Transfer(oldManagingContract, newManagingContract, oldBalance, 'changeManagingContract');
+        }
     }
 }

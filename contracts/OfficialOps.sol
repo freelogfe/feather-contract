@@ -5,13 +5,31 @@ import './TokenManagement.sol';
 import './Coin.sol';
 
 
-contract CoinOptions is Managed {
+contract CoinOperation is Managed {
 
-    Coin public feather;
+    Coin internal feather;
+
+    mapping (address => bool) public tapRecord;
+
+    event ReservationProportion(uint totalSupply, uint balanceOf);
 
     //官方调用交易
     function officialTransfer(address _from, address _to, uint256 _value, bytes _data) official_only public {
         feather.officialTransfer(_from, _to, _value, _data);
+    }
+
+    //官方账户给其他账号初始化金额
+    function tap(address _to, uint _value) official_only public {
+        require(!tapRecord[_to]);
+
+        uint balanceOf = feather.balanceOf(this);
+        uint totalSupply = feather.totalSupply();
+
+        feather.officialTransfer(this, _to, _value, 'tap');
+
+        if (balanceOf < totalSupply / 5) {
+            ReservationProportion(totalSupply, balanceOf);
+        }
     }
 
     //官方冻结or解冻账号
@@ -24,10 +42,25 @@ contract CoinOptions is Managed {
         require(mintedAmount > 0);
         feather.mintToken(mintedAmount);
     }
+
+    //官方销毁自己的货币
+    function burn(uint _value) official_only public {
+        feather.burn(_value);
+    }
+
+    //官方更换货币的管理权
+    function officialChangeManagingContract(address _newManagingContract) official_only public {
+        feather.changeManagingContract(_newManagingContract);
+    }
+
+    //确认接受货币管理权(更新货币合同测试使用)
+    function officialSucceed() official_only public {
+        feather.succeed();
+    }
 }
 
 
-contract OfficialOps is Managed, CoinOptions {
+contract OfficialOps is Managed, CoinOperation {
 
 
     address public coinAddress;

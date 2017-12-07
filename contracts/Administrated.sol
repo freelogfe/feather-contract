@@ -1,7 +1,8 @@
 pragma solidity ^0.4.18;
 
 
-//import './OfficialOps.sol';
+import './MessageAgent.sol';
+
 
 contract Administrated {
 
@@ -9,31 +10,45 @@ contract Administrated {
 
     address public heirManagingContract;
 
-    //初始化时设定好管理合同地址
-    function Administrated(address _managingContract) public {
-        managingContract = _managingContract;
+    address public objectContractAddress;
 
-        //能否直接创建一个OfficialOps作为官方操作合同
-        //暂时放弃此想法,限制了后期OfficialOps的可能的变动
-        //managingContract = new OfficialOps(this);
+    //是否是管理合同
+    modifier sudo() {
+        require(msg.sender == managingContract);
+        _;
     }
 
-    //更新管理合同地址,主要是managingContract发布新版本时,address会产生变动
-    //考虑到公平,原则上是managingContract不允许改变.后面待讨论
+    //初始化时设定好管理合同地址
+    function Administrated(address _managingContract, address _objectContractAddress) public {
+        managingContract = _managingContract;
+        objectContractAddress = _objectContractAddress;
+    }
+
+    //变更管理合同
     function changeManagingContract(address _newManagingContract) sudo public {
+        require(managingContract != _newManagingContract);
+        require(isContract(_newManagingContract));
         heirManagingContract = _newManagingContract;
     }
 
     //新管理合同确认接管旧合同
     function succeed() public {
         require(heirManagingContract == msg.sender);
+
+        address oldManagingContract = managingContract;
         managingContract = heirManagingContract;
         heirManagingContract = 0;
+
+        MessageAgent message = MessageAgent(objectContractAddress);
+        message.managingContractMessage('changeManagingContract', oldManagingContract, msg.sender);
     }
 
-    //是否是管理合同
-    modifier sudo() {
-        require(msg.sender == managingContract);
-        _;
+    function isContract(address _contractAddress) internal constant returns (bool) {
+        uint length;
+        assembly {
+        //检索目标地址上的代码大小，这需要汇编
+        length := extcodesize(_contractAddress)
+        }
+        return (length > 0);
     }
 }
