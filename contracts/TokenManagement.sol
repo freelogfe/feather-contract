@@ -54,7 +54,7 @@ contract Managed {
     }
 
     //继承人确认继承超级管理员
-    function succeed() public {
+    function succeedAdmin() public {
         require(msg.sender == heir);
         isAdministrator[admin] = false;
         isAdministrator[heir] = true;

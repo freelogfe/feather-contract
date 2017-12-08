@@ -1,8 +1,6 @@
 pragma solidity ^0.4.18;
 
 
-//ERC223标准只需要Coin全部实现即可,不需要单独继承.否则会部署失败
-//import './ERC223Token.sol';
 import './Administrated.sol';
 import './ERC223RecevingContract.sol';
 
@@ -30,8 +28,7 @@ contract Coin is Administrated {
     event FrozenFunds(address target, bool frozen);
 
     function Coin(string coinName, string coinSymbol, address _managingContract)
-    Administrated(_managingContract, this)
-    public {
+    Administrated(_managingContract) public {
         name = coinName;
         symbol = coinSymbol;
     }
@@ -68,6 +65,7 @@ contract Coin is Administrated {
         Transfer(msg.sender, _to, _value, _data);
     }
 
+    //摧毁货币
     function burn(uint _value) public returns (bool) {
         require(balanceOf[msg.sender] >= _value);
         balanceOf[msg.sender] -= _value;
@@ -91,18 +89,18 @@ contract Coin is Administrated {
         Transfer(_from, _to, _value, _data);
     }
 
+    //转移管理合同的资金到新的管理合同
+    function officialTransferFunds(address _newManagingContract) sudo public {
+        require(isContract(_newManagingContract));
+        uint previousBalances = balanceOf[managingContract];
+        balanceOf[managingContract] = 0;
+        balanceOf[_newManagingContract] += previousBalances;
+        Transfer(managingContract, _newManagingContract, previousBalances, 'manager change');
+    }
+
     //冻结or解冻账号
     function freezeAccount(address target, bool freeze) sudo public {
         frozenAccount[target] = freeze;
         FrozenFunds(target, freeze);
-    }
-
-    //管理合同发送的消息
-    function managingContractMessage(string msgType, address oldManagingContract, address newManagingContract) sudo public {
-        if (keccak256(msgType) == keccak256("changeManagingContract")) {
-            uint oldBalance = balanceOf[oldManagingContract];
-            _transfer(oldManagingContract, newManagingContract, oldBalance);
-            Transfer(oldManagingContract, newManagingContract, oldBalance, 'changeManagingContract');
-        }
     }
 }

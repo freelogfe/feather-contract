@@ -3,11 +3,15 @@ pragma solidity ^0.4.18;
 
 import './TokenManagement.sol';
 import './Coin.sol';
+import './ContractSucceed.sol';
 
-
-contract CoinOperation is Managed {
+contract OfficialOps is Managed {
 
     Coin internal feather;
+
+    address public coinAddress = 0x0;
+
+    address public heirManagingContract;
 
     mapping (address => bool) public tapRecord;
 
@@ -26,6 +30,8 @@ contract CoinOperation is Managed {
         uint totalSupply = feather.totalSupply();
 
         feather.officialTransfer(this, _to, _value, 'tap');
+
+        tapRecord[_to] = true;
 
         if (balanceOf < totalSupply / 5) {
             ReservationProportion(totalSupply, balanceOf);
@@ -49,48 +55,53 @@ contract CoinOperation is Managed {
     }
 
     //官方更换货币的管理权
-    function officialChangeManagingContract(address _newManagingContract) official_only public {
-        feather.changeManagingContract(_newManagingContract);
+    function officialChangeManagingContract(address _newManagingContract) administrator_only public {
+        require(isContract(_newManagingContract));
+        heirManagingContract = _newManagingContract;
     }
 
-    //确认接受货币管理权(更新货币合同测试使用)
-    function officialSucceed() official_only public {
-        feather.succeed();
-    }
-}
+    //新管理合同确认接管旧合同
+    function succeed() public returns (bool) {
+        require(heirManagingContract == msg.sender);
 
+        //把旧管理合同的钱转移给新管理合同
+        feather.officialTransferFunds(heirManagingContract);
+        //把管理权限移交给新合同
+        feather.changeManagingContract(heirManagingContract);
 
-contract OfficialOps is Managed, CoinOperation {
+        //没有直接调用交易函数是因为接受对象是一个contract,
+        //还需要额外实现tokenFallback才能交易成功
+        //uint oldManagerBalance = feather.balanceOf(this);
+        //feather.officialTransfer(this, heirManagingContract, oldManagerBalance, 'changeManagingContract');
 
+        //清理管理继承人
+        heirManagingContract = 0;
 
-    address public coinAddress;
-
-
-    function OfficialOps() public {
-        //coinAddress cant be initialized, but set by administrator later on
-        coinAddress = 0x0;
-        //feather contract address
-    }
-
-    //annonymous function to receive fund, just like required in erc223 standard
-    function() public {
-        //throw;
+        return true;
     }
 
-    //超管设置被管理的货币地址
-    function setCoinAddress(address _newCoinAddress) administrator_only public {
-        require(isContract(_newCoinAddress));
-        feather = Coin(_newCoinAddress);
-        coinAddress = _newCoinAddress;
+    //实现合同继位标准
+    function confrimSucceed(address oldManagerAddress) administrator_only public {
+        require(isContract(oldManagerAddress));
+        ContractSucceed oldManager = ContractSucceed(oldManagerAddress);
+        oldManager.succeed();
     }
 
     //地址是否是以太坊合约
-    function isContract(address _contractAddress) private constant returns (bool) {
+    function isContract(address _contractAddress) internal constant returns (bool) {
         uint length;
         assembly {
         //检索目标地址上的代码大小，这需要汇编
         length := extcodesize(_contractAddress)
         }
         return (length > 0);
+    }
+
+    //超管设置被管理的货币地址
+    function setCoinAddress(address _newCoinAddress) administrator_only public {
+        require(coinAddress != _newCoinAddress);
+        require(isContract(_newCoinAddress));
+        feather = Coin(_newCoinAddress);
+        coinAddress = _newCoinAddress;
     }
 }

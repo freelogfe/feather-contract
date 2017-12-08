@@ -6,6 +6,11 @@ const Coin = artifacts.require("./Coin.sol");
 
 module.exports = function (deployer) {
     deployer.deploy(OfficialOps).then(() => {
-        deployer.deploy(Coin, 10000000, 'feather', 'f', OfficialOps.address)
+        console.log('OfficialOps.address:' + OfficialOps.address)
+        deployer.deploy(Coin, 'feather', 'f', OfficialOps.address).then(()=>{
+            console.log('Coin.address:' + Coin.address)
+        })
     })
 };
+
+//sudo solc --abi --overwrite  -o ~/工作/freelog-pay-service/eth-contract-abi/ ./contracts/OfficialOps.sol
