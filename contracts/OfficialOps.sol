@@ -5,6 +5,7 @@ import './TokenManagement.sol';
 import './Coin.sol';
 import './ContractSucceed.sol';
 
+
 contract OfficialOps is Managed {
 
     Coin internal feather;
@@ -18,18 +19,18 @@ contract OfficialOps is Managed {
     event ReservationProportion(uint totalSupply, uint balanceOf);
 
     //官方调用交易
-    function officialTransfer(address _from, address _to, uint256 _value, bytes _data) official_only public {
-        feather.officialTransfer(_from, _to, _value, _data);
+    function officialTransfer(address _from, address _to, uint256 _value, string _unit, bytes _data) official_only public {
+        feather.officialTransfer(_from, _to, _value, _unit, _data);
     }
 
     //官方账户给其他账号初始化金额
-    function tap(address _to, uint _value) official_only public {
+    function tap(address _to, uint _value, string _unit) official_only public {
         require(!tapRecord[_to]);
 
         uint balanceOf = feather.balanceOf(this);
         uint totalSupply = feather.totalSupply();
 
-        feather.officialTransfer(this, _to, _value, 'tap');
+        feather.officialTransfer(this, _to, _value, _unit, 'tap');
 
         tapRecord[_to] = true;
 
@@ -44,14 +45,14 @@ contract OfficialOps is Managed {
     }
 
     //增发货币
-    function mintToken(uint256 mintedAmount) official_only public {
+    function mintToken(uint256 mintedAmount, string _unit) official_only public {
         require(mintedAmount > 0);
-        feather.mintToken(mintedAmount);
+        feather.mintToken(mintedAmount, _unit);
     }
 
     //官方销毁自己的货币
-    function burn(uint _value) official_only public {
-        feather.burn(_value);
+    function burn(uint _value, string _unit) official_only public {
+        feather.burn(_value, _unit);
     }
 
     //官方更换货币的管理权

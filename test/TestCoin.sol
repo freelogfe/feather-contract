@@ -12,7 +12,7 @@ contract TestCoin {
 
         //OfficialOps officialOpsContract = OfficialOps(DeployedAddresses.OfficialOps());
 
-        uint expected = 1;
+        uint i = 1;
 
         Assert.equal(i, 1, "Owner should have 10000 MetaCoin initially");
     }
