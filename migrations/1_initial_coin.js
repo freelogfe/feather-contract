@@ -1,15 +1,11 @@
 'use strict'
 
 
-const OfficialOps = artifacts.require("./OfficialOps.sol");
 const Coin = artifacts.require("./Coin.sol");
 
 module.exports = async function (deployer) {
-    await deployer.deploy(OfficialOps).then(() => {
-        return deployer.deploy(Coin, 'feather', 'ʄ', OfficialOps.address)
-    }).then(()=>{
-        console.log('OfficialOps.address=' + OfficialOps.address)
-        console.log('Coin.address=' + Coin.address)
+    await deployer.deploy(Coin, 'feather', 'ʄ', '0xe041340b3338e1f220c10e9971aa4edf9bfd776e').then(() => {
+        console.log(Coin.address)
     })
 };
 
