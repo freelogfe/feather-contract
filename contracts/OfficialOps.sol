@@ -24,9 +24,9 @@ contract OfficialOps is Managed {
     }
 
     //充值
-//    function recharge() public payable {
-//        require(msg.value > 0);
-//    }
+    //    function recharge() public payable {
+    //        require(msg.value > 0);
+    //    }
 
     //官方账户给其他账号初始化金额
     function tap(address _to, uint _value, string _unit) official_only public {
@@ -52,6 +52,12 @@ contract OfficialOps is Managed {
     //官方提现
     function officialWithdrawals(address _address, uint _amount) official_only public {
         feather.officialWithdrawals(_address, _amount);
+    }
+
+    //官方设置交易价格
+    function officialSetPrice(uint price) official_only public {
+        require(price > 0);
+        feather.officialSetPrice(price);
     }
 
     //增发货币
