@@ -23,6 +23,11 @@ contract OfficialOps is Managed {
         feather.officialTransfer(_from, _to, _value, _unit, _data);
     }
 
+    //充值
+//    function recharge() public payable {
+//        require(msg.value > 0);
+//    }
+
     //官方账户给其他账号初始化金额
     function tap(address _to, uint _value, string _unit) official_only public {
         require(!tapRecord[_to]);
@@ -42,6 +47,11 @@ contract OfficialOps is Managed {
     //官方冻结or解冻账号
     function officialFreezeAccount(address target, bool freeze) official_only public {
         feather.freezeAccount(target, freeze);
+    }
+
+    //官方提现
+    function officialWithdrawals(address _address, uint _amount) official_only public {
+        feather.officialWithdrawals(_address, _amount);
     }
 
     //增发货币

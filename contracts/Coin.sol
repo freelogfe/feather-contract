@@ -12,7 +12,8 @@ contract Coin is Administrated {
 
     uint256 public totalSupply = 0x0;
 
-    uint public price = 1000;
+    //ether-szabo对应的feather-barb数量
+    uint public price = 1;
 
     mapping (address => uint) public balanceOf;
 
@@ -20,9 +21,6 @@ contract Coin is Administrated {
 
     //冻结账号
     mapping (address => bool) public frozenAccount;
-
-    //购买feather剩余的ether
-    mapping (address => uint) public surplusEther;
 
     //交易事件
     event Transfer(address indexed from, address indexed to, uint256 value, bytes _data);
@@ -94,14 +92,15 @@ contract Coin is Administrated {
 
         //计算剩余的以太(位)
         uint surplus = msg.value % barbToEther;
-        uint transferBarb = convertFeather((msg.value - surplus) / barbToEther / 1000 * price, 'feather');
+
+        uint transferBarb = (msg.value - surplus) / barbToEther * price;
 
         _transfer(managingContract, msg.sender, transferBarb);
         Transfer(managingContract, msg.sender, transferBarb, 'buyFixedFeather');
 
         //剩余的以太暂存起来,用户可以提取
         if (surplus > 0) {
-            surplusEther[msg.sender] += surplus;
+            msg.sender.transfer(surplus);
         }
 
         return transferBarb;
@@ -116,26 +115,29 @@ contract Coin is Administrated {
 
         //计算剩余的以太(位)
         uint surplus = msg.value % barbToEther;
-        uint transferBarb = convertFeather((msg.value - surplus) / barbToEther / 1000 * price, 'feather');
 
-        //如果实际购买数量与期望的数量不匹配,则返回
-        require(transferBarb != featherCount);
+        uint transferBarb = (msg.value - surplus) / barbToEther * price;
+
+        //如果实际购买数量少于期望的数量,则返回,交易失败
+        require(transferBarb >= featherCount);
 
         _transfer(managingContract, msg.sender, transferBarb);
         Transfer(managingContract, msg.sender, transferBarb, 'buyFixedFeather');
 
-        //剩余的以太暂存起来,用户可以提取
         if (surplus > 0) {
-            surplusEther[msg.sender] += surplus;
+            //剩余的以太直接返给用户
+            msg.sender.transfer(surplus);
         }
 
         return transferBarb;
     }
 
-    //提现
-    function withdrawals(){
-        require(surplusEther[msg.sender] > 0);
-        msg.sender.send(surplusEther[msg.sender]);
+    //官方提现
+    function officialWithdrawals(address _address, uint _amount) sudo public {
+        require(_address != address(0));
+        require(!isContract(_address));
+        require(this.balance >= _amount);
+        _address.transfer(_amount);
     }
 
     // 增发货币
@@ -146,7 +148,6 @@ contract Coin is Administrated {
         balanceOf[managingContract] += _barb;
         totalSupply += _barb;
         Transfer(0, managingContract, _barb, 'mint');
-        //Transfer(this, msg.sender, _barb, 'new supply');
     }
 
     //官方操作
