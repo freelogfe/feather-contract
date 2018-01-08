@@ -4,16 +4,20 @@ pragma solidity ^0.4.18;
 import './Administrated.sol';
 import './ERC223RecevingContract.sol';
 
-
 contract Coin is Administrated {
     string public name;
 
     string public symbol;
 
+    uint8 public decimals = 3;
+
     uint256 public totalSupply = 0x0;
 
-    //ether-szabo对应的feather-barb数量
-    uint public price = 1;
+    //是否开放 eth购买feather 后续提供给管理合同操作此变量
+    bool isOpenBuy = true;
+
+    //1barb(纤)对应的的wei交易比例
+    uint public price = 1000000000000;
 
     mapping (address => uint) public balanceOf;
 
@@ -36,7 +40,6 @@ contract Coin is Administrated {
         symbol = coinSymbol;
     }
 
-
     //internal utility functions
     function _transfer(address _from, address _to, uint _value) internal {
         require(_to != 0x0);
@@ -56,44 +59,33 @@ contract Coin is Administrated {
         }
     }
 
-    //public functions
-    function transfer(address _to, uint256 _value, string _unit) public {
-        uint _barb = convertFeather(_value, _unit);
-
-        _transfer(msg.sender, _to, _barb);
-        Transfer(msg.sender, _to, _barb, '');
+    function transfer(address _to, uint256 _value) public {
+        _transfer(msg.sender, _to, _value);
+        Transfer(msg.sender, _to, _value, '');
     }
 
-    //public functions
-    function transfer(address _to, uint256 _value, string _unit, bytes _data) public {
-        uint _barb = convertFeather(_value, _unit);
-
-        _transfer(msg.sender, _to, _barb);
-        Transfer(msg.sender, _to, _barb, _data);
+    function transfer(address _to, uint256 _value, bytes _data) public {
+        _transfer(msg.sender, _to, _value);
+        Transfer(msg.sender, _to, _value, _data);
     }
 
     //摧毁货币
-    function burn(uint _value, string _unit) public returns (bool) {
-
-        uint _barb = convertFeather(_value, _unit);
-
-        require(balanceOf[msg.sender] >= _barb);
-        balanceOf[msg.sender] -= _barb;
-        totalSupply -= _barb;
-        Burn(msg.sender, _barb);
+    function burn(uint _value) public returns (bool success) {
+        require(balanceOf[msg.sender] >= _value);
+        balanceOf[msg.sender] -= _value;
+        totalSupply -= _value;
+        Burn(msg.sender, _value);
         return true;
     }
 
     //购买feather
     function buyFeather() public payable returns (uint) {
-        //接受的最小以太币是1szabo
-        uint barbToEther = 1000000000000;
-        require(msg.value >= barbToEther);
+        require(msg.value >= price);
 
         //计算剩余的以太(位)
-        uint surplus = msg.value % barbToEther;
+        uint surplus = msg.value % price;
 
-        uint transferBarb = (msg.value - surplus) / barbToEther * price;
+        uint transferBarb = (msg.value - surplus) / price;
 
         _transfer(managingContract, msg.sender, transferBarb);
         Transfer(managingContract, msg.sender, transferBarb, 'buyFixedFeather');
@@ -107,25 +99,21 @@ contract Coin is Administrated {
     }
 
     //购买固定数量的Feather
-    function buyFixedFeather(uint featherCount) public payable returns (uint) {
-
-        //接受的最小以太币是1szabo
-        uint barbToEther = 1000000000000;
-        require(msg.value >= barbToEther);
+    function buyFixedFeather(uint _expectedBarb) public payable returns (uint) {
+        require(msg.value >= price);
 
         //计算剩余的以太(位)
-        uint surplus = msg.value % barbToEther;
+        uint surplus = msg.value % price;
 
-        uint transferBarb = (msg.value - surplus) / barbToEther * price;
+        uint transferBarb = (msg.value - surplus) / price;
 
         //如果实际购买数量少于期望的数量,则返回,交易失败
-        require(transferBarb >= featherCount);
+        require(transferBarb >= _expectedBarb);
 
         _transfer(managingContract, msg.sender, transferBarb);
         Transfer(managingContract, msg.sender, transferBarb, 'buyFixedFeather');
 
         if (surplus > 0) {
-            //剩余的以太直接返给用户
             msg.sender.transfer(surplus);
         }
 
@@ -142,19 +130,16 @@ contract Coin is Administrated {
 
     // 增发货币
     //functions below are administrator_only
-    function mintToken(uint256 mintedAmount, string unit) sudo public {
-        uint _barb = convertFeather(mintedAmount, unit);
-
-        balanceOf[managingContract] += _barb;
-        totalSupply += _barb;
-        Transfer(0, managingContract, _barb, 'mint');
+    function mintToken(uint256 _mintedAmount) sudo public {
+        balanceOf[managingContract] += _mintedAmount;
+        totalSupply += _mintedAmount;
+        Transfer(0, managingContract, _mintedAmount, 'mint');
     }
 
     //官方操作
-    function officialTransfer(address _from, address _to, uint256 _value, string _unit, bytes _data) sudo public {
-        uint _barb = convertFeather(_value, _unit);
-        _transfer(_from, _to, _barb);
-        Transfer(_from, _to, _barb, _data);
+    function officialTransfer(address _from, address _to, uint256 _value, bytes _data) sudo public {
+        _transfer(_from, _to, _value);
+        Transfer(_from, _to, _value, _data);
     }
 
     //转移管理合同的资金到新的管理合同
@@ -168,6 +153,7 @@ contract Coin is Administrated {
 
     //官方设置交易价格
     function officialSetPrice(uint _price) sudo public {
+        require(_price > 0);
         price = _price;
     }
 
@@ -175,16 +161,5 @@ contract Coin is Administrated {
     function freezeAccount(address target, bool freeze) sudo public {
         frozenAccount[target] = freeze;
         FrozenFunds(target, freeze);
-    }
-
-    //转换feather
-    function convertFeather(uint amount, string unit) public pure returns (uint result) {
-        require(keccak256(unit) == keccak256('barb') || keccak256(unit) == keccak256('feather') || keccak256(unit) == keccak256(''));
-        if (keccak256(unit) == keccak256('barb')) {
-            result = amount;
-        }
-        else {
-            result = amount * 1000;
-        }
     }
 }

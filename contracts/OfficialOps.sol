@@ -8,9 +8,9 @@ import './ContractSucceed.sol';
 
 contract OfficialOps is Managed {
 
-    Coin internal feather;
+    uint public tapBarb = 100000;
 
-    address public coinAddress = 0x0;
+    Coin public feather;
 
     address public heirManagingContract;
 
@@ -19,28 +19,39 @@ contract OfficialOps is Managed {
     event ReservationProportion(uint totalSupply, uint balanceOf);
 
     //官方调用交易
-    function officialTransfer(address _from, address _to, uint256 _value, string _unit, bytes _data) official_only public {
-        feather.officialTransfer(_from, _to, _value, _unit, _data);
+    function officialTransfer(address _from, address _to, uint256 _value, bytes _data) official_only public {
+        feather.officialTransfer(_from, _to, _value, _data);
     }
 
-    //充值
-    //    function recharge() public payable {
-    //        require(msg.value > 0);
-    //    }
-
     //官方账户给其他账号初始化金额
-    function tap(address _to, uint _value, string _unit) official_only public {
+    function tap(address _to, uint _value) official_only public {
         require(!tapRecord[_to]);
 
         uint balanceOf = feather.balanceOf(this);
         uint totalSupply = feather.totalSupply();
 
-        feather.officialTransfer(this, _to, _value, _unit, 'tap');
+        feather.officialTransfer(this, _to, _value, 'tap');
 
         tapRecord[_to] = true;
 
-        if (balanceOf < totalSupply / 5) {
-            ReservationProportion(totalSupply, balanceOf);
+        if ((balanceOf - _value) < totalSupply / 5) {
+            ReservationProportion(totalSupply, balanceOf - _value);
+        }
+    }
+
+    //普通用户自己tap
+    function tap() public {
+        require(!tapRecord[msg.sender]);
+
+        uint balanceOf = feather.balanceOf(this);
+        uint totalSupply = feather.totalSupply();
+
+        feather.officialTransfer(this, msg.sender, tapBarb, 'tap');
+
+        tapRecord[msg.sender] = true;
+
+        if ((balanceOf - tapBarb) < totalSupply / 5) {
+            ReservationProportion(totalSupply, balanceOf - tapBarb);
         }
     }
 
@@ -60,15 +71,20 @@ contract OfficialOps is Managed {
         feather.officialSetPrice(price);
     }
 
+    //官方设置用户自己tap的数量
+    function officialSetTapBarb(uint _tapBarb) official_only public {
+        tapBarb = _tapBarb;
+    }
+
     //增发货币
-    function mintToken(uint256 mintedAmount, string _unit) official_only public {
+    function mintToken(uint256 mintedAmount) official_only public {
         require(mintedAmount > 0);
-        feather.mintToken(mintedAmount, _unit);
+        feather.mintToken(mintedAmount);
     }
 
     //官方销毁自己的货币
-    function burn(uint _value, string _unit) official_only public {
-        feather.burn(_value, _unit);
+    function burn(uint _value) official_only public {
+        feather.burn(_value);
     }
 
     //官方更换货币的管理权
@@ -85,11 +101,6 @@ contract OfficialOps is Managed {
         feather.officialTransferFunds(heirManagingContract);
         //把管理权限移交给新合同
         feather.changeManagingContract(heirManagingContract);
-
-        //没有直接调用交易函数是因为接受对象是一个contract,
-        //还需要额外实现tokenFallback才能交易成功
-        //uint oldManagerBalance = feather.balanceOf(this);
-        //feather.officialTransfer(this, heirManagingContract, oldManagerBalance, 'changeManagingContract');
 
         //清理管理继承人
         heirManagingContract = 0;
@@ -115,10 +126,8 @@ contract OfficialOps is Managed {
     }
 
     //超管设置被管理的货币地址
-    function setCoinAddress(address _newCoinAddress) administrator_only public {
-        require(coinAddress != _newCoinAddress);
+    function setCoinAddress(Coin _newCoinAddress) administrator_only public {
         require(isContract(_newCoinAddress));
-        feather = Coin(_newCoinAddress);
-        coinAddress = _newCoinAddress;
+        feather = _newCoinAddress;
     }
 }
